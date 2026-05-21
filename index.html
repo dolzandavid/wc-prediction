@@ -120,8 +120,10 @@ const firebaseConfig = {
   appId: "1:515944697470:web:4fcbab52cf31cf3288d22f",
   measurementId: "G-77K1J30KNV"
 };
+
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
+console.log("Firebase project:", firebaseConfig.projectId);
 
 const users = { david:"david123", katja:"katja123", mark:"mark123", jus:"jus123" };
 const userDisplayNames = { david: "David", katja: "Katja", mark: "Mark", jus: "Jus" };
@@ -140,6 +142,12 @@ const stageLabels = {
 
 function getStageLabel(stage) {
   return stageLabels[String(stage)] || `Stage ${stage}`;
+}
+
+
+function setTextIfExists(id, value) {
+  const el = document.getElementById(id);
+  if (el) el.textContent = value;
 }
 
 function getDefaultDeadline(stage) {
@@ -492,7 +500,7 @@ const defaultDeadline = getDefaultDeadline(currentStage);
 const deadlineSource = rawDeadline || defaultDeadline;
 const deadline = deadlineSource ? (deadlineSource instanceof Date ? deadlineSource : new Date(deadlineSource)) : null;
 const afterDeadline = deadline ? new Date() > deadline : false;
-  document.getElementById("gameweekDeadline").textContent = deadline ? `Deadline: ${deadline.toLocaleString()}` : "";
+  setTextIfExists("gameweekDeadline", deadline ? `Deadline: ${deadline.toLocaleString()}` : "");
 
   for (const fixture of currentFixtures) {
     const result = currentResults[fixture.id];
@@ -834,7 +842,7 @@ function renderLeaderboards(allPredictions, allResults, allFixtures) {
 
   document.getElementById("leaderboardOverall").innerHTML = render(overall, exacts, outcomes, counts);
   document.getElementById("leaderboardWeekly").innerHTML = render(weekly, wExacts, wOutcomes, wCounts);
-  document.getElementById("stageLeaderboardTitle").textContent = `Stage Leaderboard (${getStageLabel(currentStage)})`;
+  setTextIfExists("stageLeaderboardTitle", `Stage Leaderboard (${getStageLabel(currentStage)})`);
 
   // ✅ Show overall leaderboard once it's accurate
 document.getElementById("leaderboardOverall").classList.remove("hidden");
@@ -879,14 +887,13 @@ document.getElementById("addFixtureBtn").onclick = async () => {
 
     const newFixture = { id, home, away, stage: currentStage };
     currentFixtures = [...currentFixtures.filter(f => f.id !== id), newFixture];
-    if (!stageCache[currentStage]) stageCache[currentStage] = { fixtures: [], predictions: {}, results: {}, deadline: getDefaultDeadline(currentStage) };
-  stageCache[currentStage].fixtures = currentFixtures;
+    stageCache[currentStage].fixtures = currentFixtures;
     sessionStorage.setItem("stageCache", JSON.stringify(stageCache));
 
     renderGameweek();
   } catch (err) {
     console.error("Failed to add fixture", err);
-    alert("Could not add fixture. Check your Firebase/Firestore permissions and try again.");
+    alert(`Could not add fixture: ${err.code || err.message || err}`);
   }
 };
 
