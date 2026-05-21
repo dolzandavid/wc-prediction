@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- wc-prediction build: dropdown-hard-failsafe-v8 -->
+<!-- wc-prediction build: remove-duplicate-getAllStages-v10 -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -156,9 +156,6 @@ const stageLabels = {
 };
 
 
-function getAllStages() {
-  return Object.keys(stageLabels).sort((a, b) => +a - +b);
-}
 
 
 
@@ -170,10 +167,8 @@ function ensureStageDropdownHasOptions() {
 }
 
 function buildStageDropdown() {
-  const select = document.getElementById("gameweekSelect") || document.getElementById("gameweekSelect");
+  const select = document.getElementById("gameweekSelect");
   if (!select) return;
-
-  if (select.id !== "gameweekSelect") select.id = "gameweekSelect";
 
   const stages = [
     ["1", "Group Stage - Week 1"],
@@ -193,6 +188,7 @@ function buildStageDropdown() {
     `<option value="${value}" ${value === currentStage ? "selected" : ""}>${label}</option>`
   ).join("");
 }
+
 
 function getAllStages() {
   return ["1","2","3","4","5","6","7","8","9"];
