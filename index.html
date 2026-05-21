@@ -1,0 +1,1023 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>FIFA World Cup 2026 Predictor</title>
+  <script type="module" src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script type="module" src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+  <script type="module" src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+  <style>
+    input[type="number"]::-webkit-inner-spin-button,
+    input[type="number"]::-webkit-outer-spin-button {
+      opacity: 1;
+    }
+  </style>
+</head>
+<body class="bg-gray-100 text-gray-800">
+
+<!-- Loading Overlay -->
+<div id="loadingOverlay" class="fixed inset-0 bg-white bg-opacity-80 flex items-center justify-center z-50 hidden">
+  <div class="bg-white border border-gray-300 rounded px-6 py-4 shadow text-lg font-semibold">
+    Loading fixtures, please wait...
+  </div>
+</div>
+
+<!-- History Modal -->
+<div id="historyModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50">
+  <div class="bg-white p-6 rounded shadow-lg max-w-lg w-full">
+    <h2 class="text-lg font-semibold mb-4">Head-to-Head</h2>
+    <div id="historyContent" class="text-sm max-h-80 overflow-y-auto whitespace-pre-wrap"></div>
+    <button id="closeHistoryBtn" class="mt-4 bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded">Close</button>
+  </div>
+</div>
+
+  <div class="max-w-5xl mx-auto p-4">
+    <h1 class="text-2xl font-bold mb-1 text-center">FIFA World Cup 2026 Prediction Game</h1>
+    <p class="text-center text-gray-600 mb-4">Predict every match from the 2026 FIFA World Cup across group and knockout stages.</p>
+
+    <!-- LOGIN + CHANGE PASSWORD SECTION -->
+    <div id="loginSection" class="mb-6 space-y-4">
+      <div>
+        <select id="username" class="border p-2 mr-2">
+          <option value="" disabled selected>Select user</option>
+          <option value="david">David</option>
+          <option value="katja">Katja</option>
+          <option value="mark">Mark</option>
+          <option value="jus">Jus</option>
+        </select>
+        <input id="password" type="password" class="border p-2 mr-2" placeholder="Password" />
+        <button id="loginBtn" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded">Login</button>
+      </div>
+      <div class="text-sm">
+        <button id="showChangePwBtn" class="text-blue-500 hover:underline">Change password</button>
+      </div>
+      <div id="changePwSection" class="hidden space-y-2">
+        <h3 class="font-semibold">Change Password</h3>
+        <input id="oldPw" type="password" class="border p-2 w-full" placeholder="Old Password" />
+        <input id="newPw" type="password" class="border p-2 w-full" placeholder="New Password" />
+        <button id="changePwBtn" class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded">Change Password</button>
+      </div>
+    </div>
+    <!-- APP UI -->
+    <div id="app" style="display:none;">
+      <div class="flex justify-between items-center mb-4">
+        <span id="welcomeUser" class="font-semibold"></span>
+        <button id="logoutBtn" class="bg-gray-500 hover:bg-gray-600 text-white px-3 py-1 rounded">Logout</button>
+      </div>
+
+      <!-- Stage Selector -->
+      <div class="mb-4 flex items-center">
+        <label for="stageSelect" class="mr-2 font-medium">Stage:</label>
+        <select id="stageSelect" class="border p-2"></select>
+        <span id="stageDeadline" class="ml-4 text-sm text-gray-600"></span>
+      </div>
+      <!-- Fixture Editor (David) -->
+      <div id="fixtureEditor" class="mb-6 hidden">
+        <h2 class="text-lg font-semibold mb-2">Edit Fixtures</h2>
+        <div class="flex items-center space-x-2">
+          <input id="newHomeTeam" class="border p-2" placeholder="Home Team" />
+          <input id="newAwayTeam" class="border p-2" placeholder="Away Team" />
+          <button id="addFixtureBtn" class="bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded">Add Fixture</button>
+        </div>
+        <div class="mt-2 flex items-center space-x-2">
+          <label class="text-sm">Deadline:</label>
+          <input type="datetime-local" id="deadlineInput" class="border p-1" />
+          <button id="setDeadlineBtn" class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-sm">Set Deadline</button>
+        </div>
+      </div>
+
+      <!-- Fixtures -->
+      <div id="fixturesContainer" class="mb-8"></div>
+
+      <!-- Leaderboards -->
+      <div class="mb-6">
+        <h2 class="text-lg font-semibold mb-2">World Cup Leaderboard</h2>
+        <div id="leaderboardOverallContainer">
+<div id="leaderboardOverallLoading" class="flex justify-center my-4">
+  <div class="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-gray-600"></div>
+  <span class="ml-2 text-gray-600 text-sm self-center">Loading leaderboard...</span>
+</div>
+  <div id="leaderboardOverall" class="overflow-x-auto hidden"></div>
+</div>
+
+        <h2 class="text-lg font-semibold mt-6 mb-2">Stage Leaderboard</h2>
+        <div id="leaderboardWeekly" class="overflow-x-auto"></div>
+      </div>
+
+      <!-- Password Reset (David) -->
+      <div id="passwordResetSection" class="hidden mb-8">
+        <h2 class="text-lg font-semibold mb-2">Reset Player Password</h2>
+        <select id="resetUserSelect" class="border p-2 mr-2"></select>
+        <input id="newPasswordInput" class="border p-2 mr-2" placeholder="New Password" />
+        <button id="resetPasswordBtn" class="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded">Reset Password</button>
+      </div>
+    </div>
+  </div>
+  <script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getFirestore, doc, setDoc, getDoc, collection, getDocs, deleteDoc, query, where, onSnapshot, updateDoc, deleteField } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyA2WG0LUwLCDqmylgezCZ0aH5Q8vTaXTKU",
+  authDomain: "pl-predictor-13a6d.firebaseapp.com",
+  projectId: "pl-predictor-13a6d",
+  storageBucket: "pl-predictor-13a6d.appspot.com",
+  messagingSenderId: "286908896536",
+  appId: "1:286908896536:web:dabd76b4faaa72a98cfa6d"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+const users = { david:"david123", katja:"katja123", mark:"mark123", jus:"jus123" };
+
+let currentUser="", currentStage="", deadlinesByStage={};
+let stageCache = {};
+let currentFixtures = [], currentPredictions = {}, currentResults = {};
+
+let cachedFixtures = [];
+let cachedPredictions = {};
+let cachedResults = {};
+
+const loginBtn = document.getElementById("loginBtn");
+const showChangePwBtn = document.getElementById("showChangePwBtn");
+const changePwSection = document.getElementById("changePwSection");
+const oldPw = document.getElementById("oldPw");
+const newPw = document.getElementById("newPw");
+const changePwBtn = document.getElementById("changePwBtn");
+const logoutBtn = document.getElementById("logoutBtn");
+const appDiv = document.getElementById("app");
+const loginSection = document.getElementById("loginSection");
+const welcomeUser = document.getElementById("welcomeUser");
+
+// Toggle change-password form
+showChangePwBtn.onclick = () => changePwSection.classList.toggle("hidden");
+
+// Handle password change
+changePwBtn.onclick = async () => {
+  const user = document.getElementById("username").value;
+  const oldPass = oldPw.value, newPass = newPw.value;
+  if (!user || !oldPass || !newPass) return alert("Fill all fields");
+  const snap = await getDoc(doc(db,"passwords",user));
+  const saved = snap.exists() ? snap.data().password : users[user];
+  if (oldPass !== saved) return alert("Old password is incorrect");
+  await setDoc(doc(db,"passwords",user),{password:newPass});
+  alert("Password changed!");
+  oldPw.value=""; newPw.value="";
+};
+
+async function preloadAllStages() {
+  const fixtureDocs = await getDocs(collection(db, "fixtures"));
+  const allFixtures = fixtureDocs.docs.map(d => ({ id: d.id, ...d.data() }));
+  const weeks = [...new Set(allFixtures.map(f => f.stage))].filter(Boolean);
+
+  const deadlinesSnap = await getDocs(collection(db, "deadlines"));
+  const deadlineMap = {};
+  deadlinesSnap.forEach(doc => {
+    if (doc.exists()) deadlineMap[doc.id] = doc.data().deadline;
+  });
+
+  for (let week of weeks) {
+    const fixtures = allFixtures.filter(f => f.stage === week);
+    const predictionsSnap = await getDoc(doc(db, "predictions", week));
+    const resultsSnap = await getDoc(doc(db, "results", week));
+    const predictions = predictionsSnap.exists() ? predictionsSnap.data() : {};
+    const results = resultsSnap.exists() ? resultsSnap.data() : {};
+    const deadline = deadlineMap[week] || null;
+
+    stageCache[week] = { fixtures, predictions, results, deadline };
+  }
+}
+
+async function loadAllStageDataForLeaderboards() {
+  const fixtureDocs = await getDocs(collection(db, "fixtures"));
+  const allFixtures = fixtureDocs.docs.map(d => ({ id: d.id, ...d.data() }));
+  const weeks = [...new Set(allFixtures.map(f => f.stage))].filter(Boolean);
+
+  const deadlineSnap = await getDocs(collection(db, "deadlines"));
+  deadlineSnap.forEach(doc => {
+    if (doc.exists()) {
+      deadlinesByStage[doc.id] = new Date(doc.data().deadline);
+    }
+  });
+
+  for (let week of weeks) {
+    if (!stageCache[week]) stageCache[week] = {};
+    const fixtures = allFixtures.filter(f => f.stage === week);
+
+    const [predSnap, resSnap] = await Promise.all([
+      getDoc(doc(db, "predictions", week)),
+      getDoc(doc(db, "results", week))
+    ]);
+
+    stageCache[week].fixtures = fixtures;
+    stageCache[week].predictions = predSnap.exists() ? predSnap.data() : {};
+    stageCache[week].results = resSnap.exists() ? resSnap.data() : {};
+  }
+
+  // ✅ Only now is it safe to render
+  renderLeaderboardsFromLocalCache();
+sessionStorage.setItem("stageCache", JSON.stringify(stageCache));
+sessionStorage.setItem("deadlinesByStage", JSON.stringify(deadlinesByStage));
+
+}
+
+async function determineClosestStage() {
+  const fixtureDocs = await getDocs(collection(db, "fixtures"));
+  const weeks = [...new Set(fixtureDocs.docs.map(d => d.data().stage))]
+    .filter(Boolean).sort((a, b) => +a - +b);
+
+  const deadlineDocs = await getDocs(collection(db, "deadlines"));
+  deadlinesByStage = {};
+  deadlineDocs.forEach(docSnap => {
+    const data = docSnap.data();
+    if (data?.deadline) {
+      deadlinesByStage[docSnap.id] = new Date(data.deadline);
+    }
+  });
+
+  const now = new Date();
+  let closestWeek = null, minDiff = Infinity;
+  for (let week of weeks) {
+    const deadline = deadlinesByStage[week];
+    if (deadline) {
+      const diff = Math.abs(deadline - now);
+      if (diff < minDiff) {
+        minDiff = diff;
+        closestWeek = week;
+      }
+    }
+  }
+
+  currentStage = closestWeek || weeks[0] || "1";
+}
+
+async function populateStageDropdown() {
+  const fixtureDocs = await getDocs(collection(db, "fixtures"));
+  const weeks = [...new Set(fixtureDocs.docs.map(d => d.data().stage))]
+    .filter(Boolean).sort((a, b) => +a - +b);
+
+  const select = document.getElementById("stageSelect");
+  select.innerHTML = weeks.map(w =>
+    `<option value="${w}" ${w == currentStage ? "selected" : ""}>Stage ${w}</option>`
+  ).join("");
+}
+
+function populateStageDropdownFromCache() {
+  const weeks = Object.keys(stageCache).sort((a, b) => +a - +b);
+  const select = document.getElementById("stageSelect");
+  select.innerHTML = weeks.map(w =>
+    `<option value="${w}" ${w == currentStage ? "selected" : ""}>Stage ${w}</option>`
+  ).join("");
+}
+
+
+loginBtn.onclick = async () => {
+  const user = document.getElementById("username").value;
+  const pass = document.getElementById("password").value;
+  const snap = await getDoc(doc(db, "passwords", user));
+  const saved = snap.exists() ? snap.data().password : users[user];
+
+  if (users[user] && pass === saved) {
+    currentUser = user;
+    loginSection.style.display = "none";
+    appDiv.style.display = "block";
+    welcomeUser.textContent = `Welcome, ${user.charAt(0).toUpperCase() + user.slice(1)}`;
+    document.getElementById("leaderboardOverall").classList.add("hidden");
+    document.getElementById("leaderboardOverallLoading").classList.remove("hidden");
+    document.getElementById("leaderboardOverall").innerHTML = "";
+    document.getElementById("leaderboardWeekly").innerHTML = "";
+
+    if (user === "david") {
+      document.getElementById("fixtureEditor").classList.remove("hidden");
+      document.getElementById("passwordResetSection").classList.remove("hidden");
+      populatePasswordResetDropdown();
+
+      const all = await getDocs(collection(db, "fixtures"));
+      if (all.empty) {
+        for (let gw = 1; gw <= 16; gw++) {
+          const id = `${gw}_Team A_Team B_${Date.now() + gw}`;
+          await setDoc(doc(db, "fixtures", id), { home: "Country A", away: "Country B", stage: gw });
+        }
+        alert("Auto-generated placeholder fixtures.");
+      }
+    }
+
+    document.getElementById("loadingOverlay").classList.remove("hidden");
+
+    await determineClosestStage();
+    subscribeToStage(currentStage);
+
+if (Object.keys(stageCache).length > 0) {
+  populateStageDropdownFromCache();
+} else {
+  await populateStageDropdown(); // 🔹 queries Firestore and fills dropdown
+}
+    document.getElementById("loadingOverlay").classList.add("hidden");
+
+    // 🔹 Start background leaderboard loading (all stages)
+    setTimeout(async () => {
+      await loadAllStageDataForLeaderboards(); // Fetch all stage data
+      renderLeaderboardsFromLocalCache();         // Populate leaderboard when done
+      // Save cache
+      sessionStorage.setItem("stageCache", JSON.stringify(stageCache));
+      sessionStorage.setItem("deadlinesByStage", JSON.stringify(deadlinesByStage));
+    }, 0);
+
+    localStorage.setItem("loggedInUser", user);
+    localStorage.setItem("selectedStage", currentStage);
+
+  } else {
+    alert("Invalid login");
+  }
+};
+
+logoutBtn.onclick = () => {
+  localStorage.removeItem("loggedInUser");
+  localStorage.removeItem("selectedStage");
+  location.reload();
+};
+
+function getLogoUrl(teamName) {
+  return `logos/${teamName
+    .toLowerCase()
+    .replace(/[^a-z0-9 ]/g, "")  // remove punctuation like apostrophes
+    .replace(/\s+/g, "-")}.png`; // replace spaces with dashes
+}
+
+async function loadStages() {
+const fixtureDocs = await getDocs(collection(db, "fixtures"));
+const weeks = [...new Set(fixtureDocs.docs.map(d => d.data().stage))]
+  .filter(Boolean).sort((a, b) => +a - +b);
+  const deadlineDocs = await getDocs(collection(db, "deadlines"));
+
+  deadlinesByStage = {};
+  deadlineDocs.forEach(docSnap => {
+    const data = docSnap.data();
+    if (data?.deadline) {
+      deadlinesByStage[docSnap.id] = new Date(data.deadline);
+    }
+  });
+
+  const now = new Date();
+  let closestWeek = null, minDiff = Infinity;
+  for (let week of weeks) {
+    const deadline = deadlinesByStage[week];
+    if (deadline) {
+      const diff = Math.abs(deadline - now);
+      if (diff < minDiff) {
+        minDiff = diff;
+        closestWeek = week;
+      }
+    }
+  }
+
+if (!currentStage) {
+  currentStage = closestWeek || weeks[0] || "1";
+}
+  const stageSelect = document.getElementById("stageSelect");
+  stageSelect.innerHTML = weeks.map(w => `<option value="${w}">Stage ${w}</option>`).join("");
+  stageSelect.value = currentStage;
+  subscribeToStage(currentStage);
+}
+
+document.getElementById("stageSelect").onchange = async (e) => {
+  currentStage = e.target.value;
+  localStorage.setItem("selectedStage", currentStage);
+  unsubscribeAll();
+  subscribeToStage(currentStage);
+};
+
+let unsubscribeFns = [];
+
+function unsubscribeAll() {
+  unsubscribeFns.forEach(fn => fn());
+  unsubscribeFns = [];
+}
+
+function subscribeToStage(stage) {
+  unsubscribeAll(); // Remove previous listeners
+
+  // 🔄 Fixtures (real-time)
+  const qFixtures = query(collection(db, "fixtures"), where("stage", "==", stage));
+  const unsubFixtures = onSnapshot(qFixtures, snapshot => {
+    const fixtures = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+    currentFixtures = fixtures;
+    if (!stageCache[stage]) stageCache[stage] = {};
+    stageCache[stage].fixtures = fixtures;
+    sessionStorage.setItem("stageCache", JSON.stringify(stageCache));
+    renderStage();
+  });
+  unsubscribeFns.push(unsubFixtures);
+
+  // 🔄 Predictions
+  const unsubPred = onSnapshot(doc(db, "predictions", stage), snap => {
+    const data = snap.exists() ? snap.data() : {};
+    currentPredictions = data;
+    if (!stageCache[stage]) stageCache[stage] = {};
+    stageCache[stage].predictions = data;
+    sessionStorage.setItem("stageCache", JSON.stringify(stageCache));
+    renderStage();
+  });
+  unsubscribeFns.push(unsubPred);
+
+  // 🔄 Results
+  const unsubRes = onSnapshot(doc(db, "results", stage), snap => {
+    const data = snap.exists() ? snap.data() : {};
+    currentResults = data;
+    if (!stageCache[stage]) stageCache[stage] = {};
+    stageCache[stage].results = data;
+    sessionStorage.setItem("stageCache", JSON.stringify(stageCache));
+    renderStage();
+    renderLeaderboardsFromLocalCache();
+  });
+  unsubscribeFns.push(unsubRes);
+
+  // 🔄 Deadline
+  const unsubDeadline = onSnapshot(doc(db, "deadlines", stage), snap => {
+    if (snap.exists()) {
+      const deadline = snap.data().deadline;
+      deadlinesByStage[stage] = new Date(deadline);
+      if (!stageCache[stage]) stageCache[stage] = {};
+      stageCache[stage].deadline = deadline;
+      sessionStorage.setItem("stageCache", JSON.stringify(stageCache));
+      sessionStorage.setItem("deadlinesByStage", JSON.stringify(deadlinesByStage));
+      document.getElementById("stageDeadline").textContent =
+        `Deadline: ${new Date(deadline).toLocaleString()}`;
+    }
+  });
+  unsubscribeFns.push(unsubDeadline);
+}
+
+function renderStage() {
+  const fixturesContainer = document.getElementById("fixturesContainer");
+  fixturesContainer.innerHTML = "";
+
+ const rawDeadline = deadlinesByStage[currentStage];
+const deadline = rawDeadline instanceof Date ? rawDeadline : new Date(rawDeadline);
+const afterDeadline = deadline && new Date() > deadline;
+
+  for (const fixture of currentFixtures) {
+    const result = currentResults[fixture.id];
+    const pred = currentPredictions[fixture.id]?.[currentUser];
+    const isLocked = !!result || afterDeadline;
+    const hasPrediction = !!pred;
+
+    const div = document.createElement("div");
+    div.className = "border p-3 my-2 bg-white rounded shadow";
+
+div.innerHTML = `
+  <div class="flex flex-col md:flex-row md:justify-between md:items-center gap-2">
+    <div class="font-semibold flex flex-wrap items-center">
+      <span class="homeTeam flex items-center mr-2">
+        <img src="${getLogoUrl(fixture.home)}" alt="${fixture.home}" class="w-5 h-5 mr-1 inline" />
+        ${fixture.home}
+      </span>
+      <span class="mx-1">vs</span>
+      <span class="awayTeam flex items-center ml-2">
+        <img src="${getLogoUrl(fixture.away)}" alt="${fixture.away}" class="w-5 h-5 mr-1 inline" />
+        ${fixture.away}
+      </span>
+      <button class="historyBtn bg-yellow-100 hover:bg-yellow-200 px-2 py-1 rounded text-xs ml-2 mt-2 md:mt-0">
+        Head-to-Head
+      </button>
+    </div>
+    ${currentUser === "david" ? `
+      <div class="flex gap-2 flex-wrap">
+        <button class="editBtn bg-blue-100 hover:bg-blue-200 px-2 py-1 rounded text-sm">Edit</button>
+        <button class="deleteFixtureBtn bg-red-100 hover:bg-red-200 px-2 py-1 rounded text-sm">Delete</button>
+      </div>` : ""}
+  </div>
+
+  <div class="mt-3 flex flex-col md:flex-row gap-4">
+    <div>
+      <label class="text-sm block mb-1">Your Prediction:</label>
+      ${
+        isLocked && pred
+          ? `<div class="inline-block bg-blue-100 border px-3 py-1 rounded">${pred.home} : ${pred.away}</div>`
+          : pred
+            ? `<div class="flex flex-wrap items-center gap-2">
+                <input type="number" min="0" class="border p-2 w-16 predHome" value="${pred?.home ?? ""}">
+                <span>:</span>
+                <input type="number" min="0" class="border p-2 w-16 predAway" value="${pred?.away ?? ""}">
+                <button class="savePred bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-sm">Save</button>
+                <button class="deletePred bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-sm">Delete</button>
+              </div>`
+            : isLocked
+              ? `<div class="text-red-500 italic">Not submitted</div>`
+              : `<div class="flex flex-wrap items-center gap-2">
+                  <input type="number" min="0" class="border p-2 w-16 predHome" value="">
+                  <span>:</span>
+                  <input type="number" min="0" class="border p-2 w-16 predAway" value="">
+                  <button class="savePred bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-sm">Save</button>
+                </div>`
+      }
+    </div>
+
+    <div>
+${
+  currentUser === "david"
+    ? `<label class="text-sm block mb-1">Result:</label>
+       <div class="flex flex-wrap items-center gap-2">
+         <input type="number" min="0" class="border p-2 w-16 resHome" value="${result?.home ?? ""}">
+         <span>:</span>
+         <input type="number" min="0" class="border p-2 w-16 resAway" value="${result?.away ?? ""}">
+         <button class="saveRes bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded text-sm">Save</button>
+         ${result ? `<button class="deleteRes bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-sm">Delete</button>` : ""}
+       </div>`
+    : result
+      ? `<label class="text-sm block mb-1">Result:</label>
+         <div class="bg-gray-200 border px-3 py-1 rounded inline-block">${result.home} : ${result.away}</div>`
+      : ""
+}
+    </div>
+  </div>
+
+  <div class="text-sm mt-3 playersPredictions"></div>
+`;
+
+    fixturesContainer.appendChild(div);
+
+    // Event listeners (unchanged)
+    div.querySelector(".savePred")?.addEventListener("click", async () => {
+      const h = div.querySelector(".predHome").value;
+      const a = div.querySelector(".predAway").value;
+      const snap = await getDoc(doc(db, "predictions", currentStage));
+      const data = snap.exists() ? snap.data() : {};
+      if (!data[fixture.id]) data[fixture.id] = {};
+      data[fixture.id][currentUser] = { home: +h, away: +a };
+await updateDoc(doc(db, "predictions", currentStage), {
+  [`${fixture.id}.${currentUser}`]: { home: +h, away: +a }
+});
+
+      currentPredictions[fixture.id] = { ...currentPredictions[fixture.id], [currentUser]: { home: +h, away: +a } };
+      stageCache[currentStage].predictions = currentPredictions;
+      sessionStorage.setItem("stageCache", JSON.stringify(stageCache));
+
+      renderStage();
+    });
+
+    div.querySelector(".deletePred")?.addEventListener("click", async () => {
+      const snap = await getDoc(doc(db, "predictions", currentStage));
+      if (!snap.exists()) return;
+      const data = snap.data();
+      delete data[fixture.id][currentUser];
+      if (Object.keys(data[fixture.id]).length === 0) delete data[fixture.id];
+await updateDoc(doc(db, "predictions", currentStage), {
+  [`${fixture.id}.${currentUser}`]: deleteField()
+});
+
+      if (currentPredictions[fixture.id]) {
+        delete currentPredictions[fixture.id][currentUser];
+      }
+      stageCache[currentStage].predictions = currentPredictions;
+      sessionStorage.setItem("stageCache", JSON.stringify(stageCache));
+      renderStage();
+    });
+
+    div.querySelector(".saveRes")?.addEventListener("click", async () => {
+      const h = div.querySelector(".resHome").value;
+      const a = div.querySelector(".resAway").value;
+      const snap = await getDoc(doc(db, "results", currentStage));
+      const data = snap.exists() ? snap.data() : {};
+      data[fixture.id] = { home: +h, away: +a };
+await updateDoc(doc(db, "results", currentStage), {
+  [`${fixture.id}`]: { home: +h, away: +a }
+});
+
+      currentResults[fixture.id] = { home: +h, away: +a };
+      stageCache[currentStage].results = currentResults;
+      sessionStorage.setItem("stageCache", JSON.stringify(stageCache));
+
+      renderStage();
+renderLeaderboardsFromLocalCache();
+    });
+
+    div.querySelector(".deleteRes")?.addEventListener("click", async () => {
+      if (!confirm("Are you sure you want to delete this result?")) return;
+      const snap = await getDoc(doc(db, "results", currentStage));
+      if (!snap.exists()) return;
+      const data = snap.data();
+      delete data[fixture.id];
+await updateDoc(doc(db, "results", currentStage), {
+  [`${fixture.id}`]: deleteField()
+});
+      delete currentResults[fixture.id];
+stageCache[currentStage].results = currentResults;
+sessionStorage.setItem("stageCache", JSON.stringify(stageCache));
+
+      renderStage();
+renderLeaderboardsFromLocalCache();
+    });
+
+div.querySelector(".editBtn")?.addEventListener("click", async () => {
+  const newHome = prompt("New home team name:", fixture.home)?.trim();
+  const newAway = prompt("New away team name:", fixture.away)?.trim();
+
+  if (!newHome || !newAway) return;
+
+  await setDoc(doc(db, "fixtures", fixture.id), {
+    home: newHome,
+    away: newAway,
+    stage: currentStage // ✅ required for real-time updates to work
+  });
+
+  fixture.home = newHome;
+  fixture.away = newAway;
+
+  renderStage(); // ✅ Update local UI immediately
+});
+
+div.querySelector(".deleteFixtureBtn")?.addEventListener("click", async () => {
+  if (!confirm("Are you sure you want to delete this fixture?")) return;
+
+  await deleteDoc(doc(db, "fixtures", fixture.id));
+
+  // Update local cache and UI
+  currentFixtures = currentFixtures.filter(f => f.id !== fixture.id);
+  stageCache[currentStage].fixtures = currentFixtures;
+  sessionStorage.setItem("stageCache", JSON.stringify(stageCache));
+
+  renderStage();
+});
+
+    // Show predictions from others ONLY if this user submitted one or the fixture is not locked
+    const predDiv = div.querySelector(".playersPredictions");
+    const all = currentPredictions[fixture.id] || {};
+
+    const showOthers = hasPrediction;
+
+  if (showOthers && Object.keys(all).length > 0) {
+      let html = `
+        <div class="mt-3 border border-gray-300 rounded overflow-hidden">
+          <table class="table-auto w-full text-sm">
+            <thead class="bg-gray-100 text-left">
+              <tr>
+                <th class="px-2 py-1">Player</th>
+                <th class="px-2 py-1">Prediction</th>
+                <th class="px-2 py-1">Points</th>
+              </tr>
+            </thead>
+            <tbody>
+      `;
+      for (let player in all) {
+        const p = all[player];
+        const res = currentResults[fixture.id];
+        let pts = res ? calculatePoints(p, res) : "-";
+
+        let predictionDisplay = "🔒";
+if (res || player === currentUser || afterDeadline) {
+  predictionDisplay = `${p.home}:${p.away}`;
+}
+
+let predictionClass = (!res && player !== currentUser && !afterDeadline)
+  ? 'text-gray-400 italic'
+  : '';
+
+let tooltip = (!res && player !== currentUser && !afterDeadline)
+  ? 'title="Hidden until result is submitted or deadline passed"'
+  : '';
+
+        let ptsBgClass = "bg-gray-400";
+        if (typeof pts === "number") {
+          if (pts === 5) ptsBgClass = "bg-green-600";
+          else if (pts >= 2) ptsBgClass = "bg-yellow-500";
+          else ptsBgClass = "bg-red-500";
+        }
+
+        html += `
+          <tr class="hover:bg-gray-50">
+            <td class="border-t px-2 py-1">${player.charAt(0).toUpperCase() + player.slice(1)}</td>
+            <td class="border-t px-2 py-1">
+              <span class="${predictionClass}" ${tooltip}>${predictionDisplay}</span>
+            </td>
+            <td class="border-t px-2 py-1">
+              <span class="px-2 py-1 rounded-full text-white text-xs ${ptsBgClass}">${pts}</span>
+            </td>
+          </tr>`;
+      }
+      html += `</tbody></table></div>`;
+      predDiv.innerHTML = html;
+    } else {
+      predDiv.innerHTML = "";
+    }
+  }
+
+// Rebuild merged predictions/results/fixtures from all cached stages
+const allPredictions = {};
+const allResults = {};
+const allFixtures = [];
+
+Object.values(stageCache).forEach(({ fixtures, predictions, results }) => {
+  fixtures.forEach(f => allFixtures.push(f));
+  for (const [fid, preds] of Object.entries(predictions)) {
+    allPredictions[fid] = { ...(allPredictions[fid] || {}), ...preds };
+  }
+  for (const [fid, res] of Object.entries(results)) {
+    allResults[fid] = res;
+  }
+});
+
+}
+
+function calculatePoints(pred, res) {
+  let pts = 0;
+  if (pred.home === res.home) pts++;
+  if (pred.away === res.away) pts++;
+  if (Math.sign(pred.home - pred.away) === Math.sign(res.home - res.away)) pts += 2;
+  if (pred.home === res.home && pred.away === res.away) pts++;
+  return pts;
+}
+
+function renderLeaderboards(allPredictions, allResults, allFixtures) {
+  const overall = {}, exacts = {}, outcomes = {}, counts = {};
+  const weekly = {}, wExacts = {}, wOutcomes = {}, wCounts = {};
+
+  for (let fixture of allFixtures) {
+    const fid = fixture.id;
+    const res = allResults[fid];
+    if (!res) continue;
+    const preds = allPredictions[fid] || {};
+
+    const isCurrentWeek = fixture.stage == currentStage;
+
+    for (let user in preds) {
+      const pts = calculatePoints(preds[user], res);
+      const isExact = pts === 5;
+      const isOutcome = pts >= 2;
+
+      // Overall leaderboard
+      overall[user] = (overall[user] || 0) + pts;
+      counts[user] = (counts[user] || 0) + 1;
+      if (isExact) exacts[user] = (exacts[user] || 0) + 1;
+      if (isOutcome) outcomes[user] = (outcomes[user] || 0) + 1;
+
+      // Weekly leaderboard (only current stage)
+      if (isCurrentWeek) {
+        weekly[user] = (weekly[user] || 0) + pts;
+        wCounts[user] = (wCounts[user] || 0) + 1;
+        if (isExact) wExacts[user] = (wExacts[user] || 0) + 1;
+        if (isOutcome) wOutcomes[user] = (wOutcomes[user] || 0) + 1;
+      }
+    }
+  }
+
+  const render = (points, e = {}, o = {}, c = {}) =>
+    `<table class="table-auto border w-full text-sm">
+      <thead>
+        <tr class="bg-gray-200">
+          <th class="border px-2 py-1">Player</th>
+          <th class="border px-2 py-1">Pts</th>
+          <th class="border px-2 py-1">Exact (5)</th>
+          <th class="border px-2 py-1">Outcome (2+)</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${Object.entries(points).sort((a,b)=>b[1]-a[1]).map(([u,p]) => {
+          const ex = e[u] || 0;
+          const ou = o[u] || 0;
+          const total = c[u] || 0;
+          return `<tr class="text-center">
+            <td class="border px-2 py-1">${u.charAt(0).toUpperCase() + u.slice(1)}</td>
+            <td class="border px-2 py-1 font-semibold">${p}</td>
+            <td class="border px-2 py-1">${ex} (${total ? Math.round(ex/total*100) : 0}%)</td>
+            <td class="border px-2 py-1">${ou} (${total ? Math.round(ou/total*100) : 0}%)</td>
+          </tr>`;
+        }).join("")}
+      </tbody>
+    </table>`;
+
+  document.getElementById("leaderboardOverall").innerHTML = render(overall, exacts, outcomes, counts);
+  document.getElementById("leaderboardWeekly").innerHTML = render(weekly, wExacts, wOutcomes, wCounts);
+
+  // ✅ Show overall leaderboard once it's accurate
+document.getElementById("leaderboardOverall").classList.remove("hidden");
+document.getElementById("leaderboardOverallLoading").classList.add("hidden");
+}
+
+function populatePasswordResetDropdown() {
+  document.getElementById("resetUserSelect").innerHTML =
+    Object.keys(users).map(u => `<option value="${u}">${u.charAt(0).toUpperCase() + u.slice(1)}</option>`).join("");
+}
+
+document.getElementById("resetPasswordBtn").onclick = async () => {
+  const user = document.getElementById("resetUserSelect").value;
+  const pass = document.getElementById("newPasswordInput").value.trim();
+  if (!pass) return alert("Enter new password");
+  await setDoc(doc(db, "passwords", user), { password: pass });
+  alert("Password updated");
+  document.getElementById("newPasswordInput").value = "";
+};
+
+document.getElementById("addFixtureBtn").onclick = async () => {
+  const home = document.getElementById("newHomeTeam").value.trim();
+  const away = document.getElementById("newAwayTeam").value.trim();
+  if (!home || !away) return alert("Enter both teams");
+
+  const id = `${currentStage}_${home}_${away}_${Date.now()}`;
+  await setDoc(doc(db, "fixtures", id), {
+    home,
+    away,
+    stage: currentStage // ✅ Required for onSnapshot to work
+  });
+
+  // Clear input fields
+  document.getElementById("newHomeTeam").value = "";
+  document.getElementById("newAwayTeam").value = "";
+
+  // ✅ No need to re-subscribe — snapshot will pick up the change
+  // Just clear cache and re-render locally
+  delete stageCache[currentStage];
+
+  renderStage(); // 👈 You may want this for instant UI feedback
+};
+
+document.getElementById("setDeadlineBtn").onclick = async () => {
+  const deadline = document.getElementById("deadlineInput").value;
+  if (!deadline) return;
+
+  // ✅ Save to Firestore (this will trigger onSnapshot)
+  await setDoc(doc(db, "deadlines", currentStage), { deadline });
+
+  // ✅ Update local cache
+  deadlinesByStage[currentStage] = new Date(deadline);
+
+  if (!stageCache[currentStage]) stageCache[currentStage] = {};
+  stageCache[currentStage].deadline = deadline;
+
+  // ✅ Save to sessionStorage
+  sessionStorage.setItem("stageCache", JSON.stringify(stageCache));
+  sessionStorage.setItem("deadlinesByStage", JSON.stringify(deadlinesByStage));
+
+  // ❌ DON'T re-subscribe – live updates are automatic
+  // ✅ Just update UI locally (optional)
+  renderStage();
+};
+
+// Show history modal
+const teamNameMap = {
+  "Man Utd": "Manchester United",
+  "Man City": "Manchester City",
+  "Spurs": "Tottenham Hotspur",
+  "Wolves": "Wolverhampton Wanderers",
+  "Newcastle": "Newcastle United",
+  "West Ham": "West Ham United",
+  "Nott'm Forest": "Nottingham Forest",
+  "Sheff Utd": "Sheffield United",
+  "Leeds": "Leeds United",
+  "Brighton": "Brighton & Hove Albion"
+};
+
+function normalizeTeam(name) {
+  return teamNameMap[name] || name;
+}
+
+document.addEventListener("click", async (e) => {
+  if (!e.target.classList.contains("historyBtn")) return;
+  const card = e.target.closest(".border.p-3");
+  const rawHome = card.querySelector(".homeTeam").textContent.trim();
+  const rawAway = card.querySelector(".awayTeam").textContent.trim();
+  const home = normalizeTeam(rawHome);
+  const away = normalizeTeam(rawAway);
+  const key = `${home} vs ${away}`;
+  const snap = await getDoc(doc(db, "history", key));
+  const modal = document.getElementById("historyModal");
+  const content = document.getElementById("historyContent");
+
+  if (!snap.exists()) {
+    content.textContent = `No history found for ${home} vs ${away}`;
+  } else {
+    const data = snap.data();
+    let html = `📊 Head-to-Head: ${home} vs ${away}\n\n`;
+
+    // Last 5 matches
+    html += "Last 5 matches:\n";
+    if (data.last5?.length) {
+      data.last5.forEach(m => {
+        const season = m.season || "–";
+        html += `• ${m.home} ${m.gh}-${m.ga} ${m.away} (${season})\n`;
+      });
+    } else {
+      html += "No recent matches found.\n";
+    }
+
+    // Summary
+    const s = data.summary;
+    const total = s.wins + s.draws + s.losses;
+    html += `\nSummary:\n- Total matches: ${total}\n- ${home} Wins: ${s.wins}\n- Draws: ${s.draws}\n- ${away} Wins: ${s.losses}`;
+    html += `\n- ${home} Goals: ${s.goalsFor}\n- ${away} Goals: ${s.goalsAgainst}`;
+
+    // Biggest Wins
+    html += `\n\nBiggest Wins:\n- ${home}: ${data.biggestWin?.[home] || "–"}\n- ${away}: ${data.biggestWin?.[away] || "–"}`;
+
+    // Longest Streaks
+    const hs = data.streaks?.[home];
+    const as = data.streaks?.[away];
+    html += `\n\nLongest Winning Streaks:\n- ${home}: ${hs?.count || 0} (${hs?.span || "–"})\n- ${away}: ${as?.count || 0} (${as?.span || "–"})`;
+
+    content.textContent = html;
+  }
+
+  modal.classList.remove("hidden");
+});
+
+document.getElementById("closeHistoryBtn").onclick = () =>
+  document.getElementById("historyModal").classList.add("hidden");
+
+function renderLeaderboardsFromLocalCache() {
+   const leaderboardEl = document.getElementById("leaderboardOverall");
+  const loadingEl = document.getElementById("leaderboardOverallLoading");
+
+  // Hide while rendering
+  leaderboardEl.classList.add("hidden");
+  loadingEl.classList.remove("hidden");
+  const allPredictions = {};
+  const allResults = {};
+  const allFixtures = [];
+
+  for (const week of Object.keys(stageCache)) {
+    const { fixtures, predictions, results } = stageCache[week];
+
+    for (const fixture of fixtures || []) {
+      allFixtures.push(fixture);
+      const fid = fixture.id;
+      if (predictions?.[fid]) allPredictions[fid] = predictions[fid];
+      if (results?.[fid]) allResults[fid] = results[fid];
+    }
+  }
+
+  renderLeaderboards(allPredictions, allResults, allFixtures);
+    leaderboardEl.classList.remove("hidden");
+  loadingEl.classList.add("hidden");
+
+}
+
+// 🔁 Clear sessionStorage unless it's a full reload (Ctrl+Shift+R)
+if (performance?.navigation?.type !== 1) {
+  sessionStorage.clear();
+}
+
+window.addEventListener("DOMContentLoaded", async () => {
+  const savedUser = localStorage.getItem("loggedInUser");
+  const savedStage = localStorage.getItem("selectedStage");
+
+  // Restore stageCache from sessionStorage if it exists
+  const savedCache = sessionStorage.getItem("stageCache");
+  const savedDeadlines = sessionStorage.getItem("deadlinesByStage");
+
+  if (savedCache) {
+    try {
+      stageCache = JSON.parse(savedCache);
+    } catch (e) {
+      console.error("Failed to parse cached stage data", e);
+    }
+  }
+
+  if (savedDeadlines) {
+    try {
+      const raw = JSON.parse(savedDeadlines);
+      // Convert string timestamps back to Date objects
+      for (const [week, dateStr] of Object.entries(raw)) {
+        deadlinesByStage[week] = new Date(dateStr);
+      }
+    } catch (e) {
+      console.error("Failed to parse cached deadlines", e);
+    }
+  }
+
+  if (savedUser && users[savedUser]) {
+    currentUser = savedUser;
+    currentStage = savedStage || "1";
+
+    loginSection.style.display = "none";
+    appDiv.style.display = "block";
+    welcomeUser.textContent = `Welcome, ${savedUser.charAt(0).toUpperCase() + savedUser.slice(1)}`;
+
+    if (savedUser === "david") {
+      document.getElementById("fixtureEditor").classList.remove("hidden");
+      document.getElementById("passwordResetSection").classList.remove("hidden");
+      populatePasswordResetDropdown();
+    }
+
+    document.getElementById("loadingOverlay").classList.remove("hidden");
+
+    // If cache is empty, do full Firestore load
+    if (Object.keys(stageCache).length === 0) {
+      await loadAllStageDataForLeaderboards();
+      await populateStageDropdown();
+    } else {
+      populateStageDropdownFromCache();
+      renderLeaderboardsFromLocalCache();
+    }
+
+    subscribeToStage(currentStage);
+
+    document.getElementById("loadingOverlay").classList.add("hidden");
+  }
+});
+
+</script>
+</body>
+</html>
