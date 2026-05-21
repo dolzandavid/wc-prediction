@@ -578,11 +578,14 @@ ${
       const data = snap.exists() ? snap.data() : {};
       if (!data[fixture.id]) data[fixture.id] = {};
       data[fixture.id][currentUser] = { home: +h, away: +a };
-await updateDoc(doc(db, "predictions", currentStage), {
-  [`${fixture.id}.${currentUser}`]: { home: +h, away: +a }
-});
+await setDoc(doc(db, "predictions", currentStage), {
+  [fixture.id]: {
+    [currentUser]: { home: +h, away: +a }
+  }
+}, { merge: true });
 
       currentPredictions[fixture.id] = { ...currentPredictions[fixture.id], [currentUser]: { home: +h, away: +a } };
+      if (!stageCache[currentStage]) stageCache[currentStage] = { fixtures: currentFixtures, predictions: {}, results: {}, deadline: getDefaultDeadline(currentStage) };
       stageCache[currentStage].predictions = currentPredictions;
       sessionStorage.setItem("stageCache", JSON.stringify(stageCache));
 
@@ -602,6 +605,7 @@ await updateDoc(doc(db, "predictions", currentStage), {
       if (currentPredictions[fixture.id]) {
         delete currentPredictions[fixture.id][currentUser];
       }
+      if (!stageCache[currentStage]) stageCache[currentStage] = { fixtures: currentFixtures, predictions: {}, results: {}, deadline: getDefaultDeadline(currentStage) };
       stageCache[currentStage].predictions = currentPredictions;
       sessionStorage.setItem("stageCache", JSON.stringify(stageCache));
       renderStage();
@@ -613,12 +617,13 @@ await updateDoc(doc(db, "predictions", currentStage), {
       const snap = await getDoc(doc(db, "results", currentStage));
       const data = snap.exists() ? snap.data() : {};
       data[fixture.id] = { home: +h, away: +a };
-await updateDoc(doc(db, "results", currentStage), {
-  [`${fixture.id}`]: { home: +h, away: +a }
-});
+await setDoc(doc(db, "results", currentStage), {
+  [fixture.id]: { home: +h, away: +a }
+}, { merge: true });
 
       currentResults[fixture.id] = { home: +h, away: +a };
-      stageCache[currentStage].results = currentResults;
+      if (!stageCache[currentStage]) stageCache[currentStage] = { fixtures: currentFixtures, predictions: {}, results: {}, deadline: getDefaultDeadline(currentStage) };
+stageCache[currentStage].results = currentResults;
       sessionStorage.setItem("stageCache", JSON.stringify(stageCache));
 
       renderStage();
@@ -635,6 +640,7 @@ await updateDoc(doc(db, "results", currentStage), {
   [`${fixture.id}`]: deleteField()
 });
       delete currentResults[fixture.id];
+if (!stageCache[currentStage]) stageCache[currentStage] = { fixtures: currentFixtures, predictions: {}, results: {}, deadline: getDefaultDeadline(currentStage) };
 stageCache[currentStage].results = currentResults;
 sessionStorage.setItem("stageCache", JSON.stringify(stageCache));
 
@@ -667,6 +673,7 @@ div.querySelector(".deleteFixtureBtn")?.addEventListener("click", async () => {
 
   // Update local cache and UI
   currentFixtures = currentFixtures.filter(f => f.id !== fixture.id);
+  if (!stageCache[currentStage]) stageCache[currentStage] = { fixtures: [], predictions: {}, results: {}, deadline: getDefaultDeadline(currentStage) };
   stageCache[currentStage].fixtures = currentFixtures;
   sessionStorage.setItem("stageCache", JSON.stringify(stageCache));
 
@@ -853,22 +860,34 @@ document.getElementById("addFixtureBtn").onclick = async () => {
   const away = document.getElementById("newAwayTeam").value.trim();
   if (!home || !away) return alert("Enter both teams");
 
+  if (!currentStage) currentStage = document.getElementById("gameweekSelect").value || "1";
   const id = `${currentStage}_${home}_${away}_${Date.now()}`;
-  await setDoc(doc(db, "fixtures", id), {
-    home,
-    away,
-    stage: currentStage // ✅ Required for onSnapshot to work
-  });
 
-  // Clear input fields
-  document.getElementById("newHomeTeam").value = "";
-  document.getElementById("newAwayTeam").value = "";
+  try {
+    await setDoc(doc(db, "fixtures", id), {
+      home,
+      away,
+      stage: currentStage
+    });
 
-  // ✅ No need to re-subscribe — snapshot will pick up the change
-  // Just clear cache and re-render locally
-  delete stageCache[currentStage];
+    document.getElementById("newHomeTeam").value = "";
+    document.getElementById("newAwayTeam").value = "";
 
-  renderStage(); // 👈 You may want this for instant UI feedback
+    if (!stageCache[currentStage]) {
+      stageCache[currentStage] = { fixtures: [], predictions: {}, results: {}, deadline: getDefaultDeadline(currentStage) };
+    }
+
+    const newFixture = { id, home, away, stage: currentStage };
+    currentFixtures = [...currentFixtures.filter(f => f.id !== id), newFixture];
+    if (!stageCache[currentStage]) stageCache[currentStage] = { fixtures: [], predictions: {}, results: {}, deadline: getDefaultDeadline(currentStage) };
+  stageCache[currentStage].fixtures = currentFixtures;
+    sessionStorage.setItem("stageCache", JSON.stringify(stageCache));
+
+    renderGameweek();
+  } catch (err) {
+    console.error("Failed to add fixture", err);
+    alert("Could not add fixture. Check your Firebase/Firestore permissions and try again.");
+  }
 };
 
 document.getElementById("setDeadlineBtn").onclick = async () => {
@@ -906,7 +925,8 @@ function renderLeaderboardsFromLocalCache() {
   const allFixtures = [];
 
   for (const week of Object.keys(stageCache)) {
-    const { fixtures, predictions, results } = stageCache[week];
+    const cachedStage = stageCache[week] || {};
+    const { fixtures = [], predictions = {}, results = {} } = cachedStage;
 
     for (const fixture of fixtures || []) {
       allFixtures.push(fixture);
