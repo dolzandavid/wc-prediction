@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- wc-prediction build: fixed-deadline-null-v2 -->
+<!-- wc-prediction build: login-stage-fix-v3 -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -141,6 +141,11 @@ const stageLabels = {
   "9": "Final"
 };
 
+
+function getAllStages() {
+  return Object.keys(stageLabels).sort((a, b) => +a - +b);
+}
+
 function getStageLabel(stage) {
   return stageLabels[String(stage)] || `Stage ${stage}`;
 }
@@ -167,7 +172,7 @@ function getDefaultDeadline(stage) {
 }
 
 function getCurrentStageValue() {
-  return typeof currentStage !== "undefined" ? currentStage : currentGameweek;
+  return currentStage || "1";
 }
 
 "", currentStage="", deadlinesByStage={};
@@ -262,9 +267,7 @@ sessionStorage.setItem("deadlinesByStage", JSON.stringify(deadlinesByStage));
 }
 
 async function determineClosestStage() {
-  const fixtureDocs = await getDocs(collection(db, "fixtures"));
-  const weeks = [...new Set(fixtureDocs.docs.map(d => d.data().stage))]
-    .filter(Boolean).sort((a, b) => +a - +b);
+  const weeks = getAllStages();
 
   const deadlineDocs = await getDocs(collection(db, "deadlines"));
   deadlinesByStage = {};
@@ -278,7 +281,8 @@ async function determineClosestStage() {
   const now = new Date();
   let closestWeek = null, minDiff = Infinity;
   for (let week of weeks) {
-    const deadline = deadlinesByStage[week];
+    const storedDeadline = deadlinesByStage[week];
+    const deadline = storedDeadline || new Date(getDefaultDeadline(week));
     if (deadline) {
       const diff = Math.abs(deadline - now);
       if (diff < minDiff) {
@@ -288,23 +292,21 @@ async function determineClosestStage() {
     }
   }
 
-  currentStage = closestWeek || weeks[0] || "1";
+  currentStage = closestWeek || "1";
 }
 
 async function populateStageDropdown() {
-  const fixtureDocs = await getDocs(collection(db, "fixtures"));
-  const weeks = [...new Set(fixtureDocs.docs.map(d => d.data().stage))]
-    .filter(Boolean).sort((a, b) => +a - +b);
+  const weeks = getAllStages();
 
-  const select = document.getElementById("stageSelect");
+  const select = document.getElementById("gameweekSelect");
   select.innerHTML = weeks.map(w =>
     `<option value="${w}" ${w == currentStage ? "selected" : ""}>${getStageLabel(w)}</option>`
   ).join("");
 }
 
 function populateStageDropdownFromCache() {
-  const weeks = Object.keys(stageCache).sort((a, b) => +a - +b);
-  const select = document.getElementById("stageSelect");
+  const weeks = getAllStages();
+  const select = document.getElementById("gameweekSelect");
   select.innerHTML = weeks.map(w =>
     `<option value="${w}" ${w == currentStage ? "selected" : ""}>${getStageLabel(w)}</option>`
   ).join("");
