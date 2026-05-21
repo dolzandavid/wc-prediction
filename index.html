@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- wc-prediction build: remove-duplicate-getAllStages-v10 -->
+<!-- wc-prediction build: leaderboard-setText-fix-v12 -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -134,6 +134,19 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
+
+function setTextIfExists(id, value) {
+  const el = document.getElementById(id);
+  if (el) el.textContent = value;
+}
+
+function forceShowLeaderboards() {
+  const overallEl = document.getElementById("leaderboardOverall");
+  const loadingEl = document.getElementById("leaderboardOverallLoading");
+  if (overallEl) overallEl.classList.remove("hidden");
+  if (loadingEl) loadingEl.classList.add("hidden");
+}
+
 let currentUser = "";
 let currentStage = "";
 let deadlinesByStage = {};
@@ -370,8 +383,8 @@ loginBtn.onclick = async () => {
     buildStageDropdown();
     ensureStageDropdownHasOptions();
     welcomeUser.textContent = `Welcome, ${user.charAt(0).toUpperCase() + user.slice(1)}`;
-    document.getElementById("leaderboardOverall").classList.add("hidden");
-    document.getElementById("leaderboardOverallLoading").classList.remove("hidden");
+    document.getElementById("leaderboardOverall")?.classList.add("hidden");
+    document.getElementById("leaderboardOverallLoading")?.classList.remove("hidden");
     document.getElementById("leaderboardOverall").innerHTML = "";
     document.getElementById("leaderboardWeekly").innerHTML = "";
 
@@ -905,8 +918,8 @@ function renderLeaderboards(allPredictions, allResults, allFixtures) {
   setTextIfExists("stageLeaderboardTitle", `Stage Leaderboard (${getStageLabel(currentStage)})`);
 
   // ✅ Show overall leaderboard once it's accurate
-document.getElementById("leaderboardOverall").classList.remove("hidden");
-document.getElementById("leaderboardOverallLoading").classList.add("hidden");
+document.getElementById("leaderboardOverall")?.classList.remove("hidden");
+document.getElementById("leaderboardOverallLoading")?.classList.add("hidden");
 }
 
 function populatePasswordResetDropdown() {
@@ -1004,6 +1017,7 @@ function renderLeaderboardsFromLocalCache() {
   }
 
   renderLeaderboards(allPredictions, allResults, allFixtures);
+  forceShowLeaderboards();
     leaderboardEl.classList.remove("hidden");
   loadingEl.classList.add("hidden");
 
