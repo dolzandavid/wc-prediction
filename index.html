@@ -10,6 +10,20 @@
   <script type="module" src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
   <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
   <style>
+.flag-icon {
+  width: 24px;
+  height: 16px;
+  object-fit: cover;
+  margin-right: 8px;
+  border-radius: 2px;
+  vertical-align: middle;
+}
+
+.team {
+  display: inline-flex;
+  align-items: center;
+  font-weight: 600;
+}
     input[type="number"]::-webkit-inner-spin-button,
     input[type="number"]::-webkit-outer-spin-button {
       opacity: 1;
@@ -155,6 +169,33 @@ console.log("Firebase project:", firebaseConfig.projectId);
 
 const users = { david:"david123", katja:"katja123", mark:"mark123", jus:"jus123" };
 const userDisplayNames = { david: "David", katja: "Katja", mark: "Mark", jus: "Jus" };
+
+const flagMap = {
+  "Mexico": "flags/mexico.png",
+  "South Africa": "flags/south-africa.png",
+  "South Korea": "flags/south-korea.png",
+  "Czechia": "flags/czechia.png",
+  "Brazil": "flags/brazil.png",
+  "Argentina": "flags/argentina.png",
+  "France": "flags/france.png",
+  "Germany": "flags/germany.png",
+  "Spain": "flags/spain.png",
+  "Portugal": "flags/portugal.png",
+  "USA": "flags/usa.png",
+  "Canada": "flags/canada.png",
+  "Japan": "flags/japan.png"
+};
+
+function renderTeam(name) {
+  const flag = flagMap[name] || "flags/default.png";
+
+  return `
+    <span class="team">
+      <img src="${flag}" class="flag-icon">
+      ${name}
+    </span>
+  `;
+}
 
 const stageLabels = {
   "1": "Group Stage - Week 1",
@@ -587,13 +628,15 @@ const afterDeadline = deadline ? new Date() > deadline : false;
 div.innerHTML = `
   <div class="flex flex-col md:flex-row md:justify-between md:items-center gap-2">
     <div class="font-semibold flex flex-wrap items-center">
-      <span class="homeTeam flex items-center mr-2">
-        <span class="text-2xl mr-2">${getFlagEmoji(fixture.home)}</span>${fixture.home}
-      </span>
+<span class="homeTeam flex items-center mr-2">
+  <img src="${flagMap[fixture.home]}" class="flag-icon mr-2">
+  ${fixture.home}
+</span>
       <span class="mx-1">vs</span>
-      <span class="awayTeam flex items-center ml-2">
-        <span class="text-2xl mr-2">${getFlagEmoji(fixture.away)}</span>${fixture.away}
-      </span>
+<span class="awayTeam flex items-center ml-2">
+  <img src="${flagMap[fixture.away]}" class="flag-icon mr-2">
+  ${fixture.away}
+</span>
     </div>
     ${currentUser === "david" ? `
       <div class="flex gap-2 flex-wrap">
