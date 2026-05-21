@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- wc-prediction build: static-stage-dropdown-v6 -->
+<!-- wc-prediction build: html-static-dropdown-single-deadline-v7 -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -64,7 +64,7 @@
       <div class="mb-4 flex items-center">
         <label for="stageSelect" class="mr-2 font-medium">Stage:</label>
         <select id="stageSelect" class="border p-2"></select>
-        <span id="stageDeadline" class="ml-4 text-sm text-gray-600"></span><span id="gameweekDeadline" class="ml-4 text-sm text-gray-600"></span>
+        <span id="gameweekDeadline" class="ml-4 text-sm text-gray-600"></span>
       </div>
       <!-- Fixture Editor (David) -->
       <div id="fixtureEditor" class="mb-6 hidden">
@@ -154,6 +154,7 @@ function getAllStages() {
 function buildStageDropdown() {
   const select = document.getElementById("gameweekSelect");
   if (!select) return;
+
   const stages = [
     ["1", "Group Stage - Week 1"],
     ["2", "Group Stage - Week 2"],
@@ -166,10 +167,10 @@ function buildStageDropdown() {
     ["9", "Final"]
   ];
 
-  if (!currentStage) currentStage = "1";
+  currentStage = String(currentStage || localStorage.getItem("selectedStage") || select.value || "1");
 
   select.innerHTML = stages.map(([value, label]) =>
-    `<option value="${value}" ${value == currentStage ? "selected" : ""}>${label}</option>`
+    `<option value="${value}" ${value === currentStage ? "selected" : ""}>${label}</option>`
   ).join("");
 }
 
@@ -511,8 +512,7 @@ function subscribeToStage(stage) {
       stageCache[stage].deadline = deadline;
       sessionStorage.setItem("stageCache", JSON.stringify(stageCache));
       sessionStorage.setItem("deadlinesByStage", JSON.stringify(deadlinesByStage));
-      document.getElementById("stageDeadline").textContent =
-        `Deadline: ${new Date(deadline).toLocaleString()}`;
+      setTextIfExists("gameweekDeadline", `Deadline: ${new Date(deadline).toLocaleString()}`);
     }
   });
   unsubscribeFns.push(unsubDeadline);
@@ -523,6 +523,7 @@ function renderGameweek() {
 }
 
 function renderStage() {
+  currentStage = String(currentStage || document.getElementById('gameweekSelect')?.value || '1');
   currentStage = currentStage || document.getElementById('gameweekSelect')?.value || '1';
   const fixturesContainer = document.getElementById("fixturesContainer");
   fixturesContainer.innerHTML = "";
