@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- wc-prediction build: currentStage-startup-fix-v5 -->
+<!-- wc-prediction build: static-stage-dropdown-v6 -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -148,6 +148,29 @@ const stageLabels = {
 
 function getAllStages() {
   return Object.keys(stageLabels).sort((a, b) => +a - +b);
+}
+
+
+function buildStageDropdown() {
+  const select = document.getElementById("gameweekSelect");
+  if (!select) return;
+  const stages = [
+    ["1", "Group Stage - Week 1"],
+    ["2", "Group Stage - Week 2"],
+    ["3", "Group Stage - Week 3"],
+    ["4", "Round of 32"],
+    ["5", "Round of 16"],
+    ["6", "Quarter-finals"],
+    ["7", "Semi-finals"],
+    ["8", "Third-place Play-off"],
+    ["9", "Final"]
+  ];
+
+  if (!currentStage) currentStage = "1";
+
+  select.innerHTML = stages.map(([value, label]) =>
+    `<option value="${value}" ${value == currentStage ? "selected" : ""}>${label}</option>`
+  ).join("");
 }
 
 function getStageLabel(stage) {
@@ -300,21 +323,11 @@ async function determineClosestStage() {
 }
 
 async function populateStageDropdown() {
-  const weeks = getAllStages();
-  const select = document.getElementById("gameweekSelect");
-  if (!select) return;
-  select.innerHTML = weeks.map(w =>
-    `<option value="${w}" ${w == currentStage ? "selected" : ""}>${getStageLabel(w)}</option>`
-  ).join("");
+  buildStageDropdown();
 }
 
 function populateStageDropdownFromCache() {
-  const weeks = getAllStages();
-  const select = document.getElementById("gameweekSelect");
-  if (!select) return;
-  select.innerHTML = weeks.map(w =>
-    `<option value="${w}" ${w == currentStage ? "selected" : ""}>${getStageLabel(w)}</option>`
-  ).join("");
+  buildStageDropdown();
 }
 
 
@@ -352,6 +365,8 @@ loginBtn.onclick = async () => {
     document.getElementById("loadingOverlay").classList.remove("hidden");
 
     await determineClosestStage();
+    buildStageDropdown();
+    buildStageDropdown();
     subscribeToStage(currentStage);
 
 if (Object.keys(stageCache).length > 0) {
@@ -972,6 +987,7 @@ if (performance?.navigation?.type !== 1) {
 }
 
 window.addEventListener("DOMContentLoaded", async () => {
+  buildStageDropdown();
   const savedUser = localStorage.getItem("loggedInUser");
   const savedStage = localStorage.getItem("selectedStage");
 
