@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- wc-prediction build: html-static-dropdown-single-deadline-v7 -->
+<!-- wc-prediction build: dropdown-hard-failsafe-v8 -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -63,7 +63,17 @@
       <!-- Stage Selector -->
       <div class="mb-4 flex items-center">
         <label for="stageSelect" class="mr-2 font-medium">Stage:</label>
-        <select id="stageSelect" class="border p-2"></select>
+        <select id="gameweekSelect" class="border p-2">
+          <option value="1">Group Stage - Week 1</option>
+          <option value="2">Group Stage - Week 2</option>
+          <option value="3">Group Stage - Week 3</option>
+          <option value="4">Round of 32</option>
+          <option value="5">Round of 16</option>
+          <option value="6">Quarter-finals</option>
+          <option value="7">Semi-finals</option>
+          <option value="8">Third-place Play-off</option>
+          <option value="9">Final</option>
+        </select>
         <span id="gameweekDeadline" class="ml-4 text-sm text-gray-600"></span>
       </div>
       <!-- Fixture Editor (David) -->
@@ -151,9 +161,19 @@ function getAllStages() {
 }
 
 
-function buildStageDropdown() {
+
+
+function ensureStageDropdownHasOptions() {
   const select = document.getElementById("gameweekSelect");
   if (!select) return;
+  if (select.options.length < 9) buildStageDropdown();
+}
+
+function buildStageDropdown() {
+  const select = document.getElementById("gameweekSelect") || document.getElementById("gameweekSelect");
+  if (!select) return;
+
+  if (select.id !== "gameweekSelect") select.id = "gameweekSelect";
 
   const stages = [
     ["1", "Group Stage - Week 1"],
@@ -174,14 +194,23 @@ function buildStageDropdown() {
   ).join("");
 }
 
-function getStageLabel(stage) {
-  return stageLabels[String(stage)] || `Stage ${stage}`;
+function getAllStages() {
+  return ["1","2","3","4","5","6","7","8","9"];
 }
 
-
-function setTextIfExists(id, value) {
-  const el = document.getElementById(id);
-  if (el) el.textContent = value;
+function getStageLabel(stage) {
+  const labels = {
+    "1": "Group Stage - Week 1",
+    "2": "Group Stage - Week 2",
+    "3": "Group Stage - Week 3",
+    "4": "Round of 32",
+    "5": "Round of 16",
+    "6": "Quarter-finals",
+    "7": "Semi-finals",
+    "8": "Third-place Play-off",
+    "9": "Final"
+  };
+  return labels[String(stage)] || `Stage ${stage}`;
 }
 
 function getDefaultDeadline(stage) {
@@ -342,6 +371,8 @@ loginBtn.onclick = async () => {
     currentUser = user;
     loginSection.style.display = "none";
     appDiv.style.display = "block";
+    buildStageDropdown();
+    ensureStageDropdownHasOptions();
     welcomeUser.textContent = `Welcome, ${user.charAt(0).toUpperCase() + user.slice(1)}`;
     document.getElementById("leaderboardOverall").classList.add("hidden");
     document.getElementById("leaderboardOverallLoading").classList.remove("hidden");
@@ -445,13 +476,13 @@ const weeks = [...new Set(fixtureDocs.docs.map(d => d.data().stage))]
 if (!currentStage) {
   currentStage = closestWeek || weeks[0] || "1";
 }
-  const stageSelect = document.getElementById("stageSelect");
+  const stageSelect = document.getElementById("gameweekSelect");
   stageSelect.innerHTML = weeks.map(w => `<option value="${w}">${getStageLabel(w)}</option>`).join("");
   stageSelect.value = currentStage;
   subscribeToStage(currentStage);
 }
 
-document.getElementById("stageSelect").onchange = async (e) => {
+document.getElementById("gameweekSelect").onchange = async (e) => {
   currentStage = e.target.value;
   localStorage.setItem("selectedStage", currentStage);
   unsubscribeAll();
@@ -988,6 +1019,8 @@ if (performance?.navigation?.type !== 1) {
 }
 
 window.addEventListener("DOMContentLoaded", async () => {
+  buildStageDropdown();
+  ensureStageDropdownHasOptions();
   buildStageDropdown();
   const savedUser = localStorage.getItem("loggedInUser");
   const savedStage = localStorage.getItem("selectedStage");
