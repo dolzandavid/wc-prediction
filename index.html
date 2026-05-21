@@ -166,7 +166,11 @@ function getDefaultDeadline(stage) {
   return defaults[String(stage)] || null;
 }
 
-let currentUser="", currentStage="", deadlinesByStage={};
+function getCurrentStageValue() {
+  return typeof currentStage !== "undefined" ? currentStage : currentGameweek;
+}
+
+"", currentStage="", deadlinesByStage={};
 let stageCache = {};
 let currentFixtures = [], currentPredictions = {}, currentResults = {};
 
@@ -490,6 +494,10 @@ function subscribeToStage(stage) {
     }
   });
   unsubscribeFns.push(unsubDeadline);
+}
+
+function renderGameweek() {
+  return renderStage();
 }
 
 function renderStage() {
