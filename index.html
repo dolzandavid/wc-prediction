@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- wc-prediction build: login-stage-fix-v3 -->
+<!-- wc-prediction build: currentStage-startup-fix-v5 -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -124,6 +124,10 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
+let currentUser = "";
+let currentStage = "";
+let deadlinesByStage = {};
+currentStage = currentStage || "1";
 console.log("Firebase project:", firebaseConfig.projectId);
 
 const users = { david:"david123", katja:"katja123", mark:"mark123", jus:"jus123" };
@@ -297,8 +301,8 @@ async function determineClosestStage() {
 
 async function populateStageDropdown() {
   const weeks = getAllStages();
-
   const select = document.getElementById("gameweekSelect");
+  if (!select) return;
   select.innerHTML = weeks.map(w =>
     `<option value="${w}" ${w == currentStage ? "selected" : ""}>${getStageLabel(w)}</option>`
   ).join("");
@@ -307,6 +311,7 @@ async function populateStageDropdown() {
 function populateStageDropdownFromCache() {
   const weeks = getAllStages();
   const select = document.getElementById("gameweekSelect");
+  if (!select) return;
   select.innerHTML = weeks.map(w =>
     `<option value="${w}" ${w == currentStage ? "selected" : ""}>${getStageLabel(w)}</option>`
   ).join("");
@@ -503,6 +508,7 @@ function renderGameweek() {
 }
 
 function renderStage() {
+  currentStage = currentStage || document.getElementById('gameweekSelect')?.value || '1';
   const fixturesContainer = document.getElementById("fixturesContainer");
   fixturesContainer.innerHTML = "";
 
