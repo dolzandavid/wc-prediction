@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- wc-prediction build: fixture-manual-order-sorting-v13 -->
+<!-- wc-prediction build: finals-combined-latest-v14 -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -85,8 +85,7 @@
           <option value="5">Round of 16</option>
           <option value="6">Quarter-finals</option>
           <option value="7">Semi-finals</option>
-          <option value="8">Third-place Play-off</option>
-          <option value="9">Final</option>
+          <option value="8">Finals</option>
         </select>
         <span id="gameweekDeadline" class="ml-4 text-sm text-gray-600"></span>
       </div>
@@ -256,8 +255,7 @@ const stageLabels = {
   "5": "Round of 16",
   "6": "Quarter-finals",
   "7": "Semi-finals",
-  "8": "Third-place Play-off",
-  "9": "Final"
+  "8": "Finals"
 };
 
 
@@ -268,7 +266,7 @@ const stageLabels = {
 function ensureStageDropdownHasOptions() {
   const select = document.getElementById("gameweekSelect");
   if (!select) return;
-  if (select.options.length < 9) buildStageDropdown();
+  if (select.options.length < 8) buildStageDropdown();
 }
 
 function buildStageDropdown() {
@@ -283,8 +281,7 @@ function buildStageDropdown() {
     ["5", "Round of 16"],
     ["6", "Quarter-finals"],
     ["7", "Semi-finals"],
-    ["8", "Third-place Play-off"],
-    ["9", "Final"]
+    ["8", "Finals"]
   ];
 
   currentStage = String(currentStage || localStorage.getItem("selectedStage") || select.value || "1");
@@ -296,7 +293,7 @@ function buildStageDropdown() {
 
 
 function getAllStages() {
-  return ["1","2","3","4","5","6","7","8","9"];
+  return ["1","2","3","4","5","6","7","8"];
 }
 
 function getStageLabel(stage) {
@@ -308,8 +305,7 @@ function getStageLabel(stage) {
     "5": "Round of 16",
     "6": "Quarter-finals",
     "7": "Semi-finals",
-    "8": "Third-place Play-off",
-    "9": "Final"
+    "8": "Finals"
   };
   return labels[String(stage)] || `Stage ${stage}`;
 }
@@ -323,8 +319,7 @@ function getDefaultDeadline(stage) {
     "5": "2026-07-04T21:00",
     "6": "2026-07-09T21:00",
     "7": "2026-07-13T21:00",
-    "8": "2026-07-18T21:00",
-    "9": "2026-07-19T21:00"
+    "8": "2026-07-19T21:00"
   };
   return defaults[String(stage)] || null;
 }
@@ -370,7 +365,11 @@ changePwBtn.onclick = async () => {
 
 async function preloadAllStages() {
   const fixtureDocs = await getDocs(collection(db, "fixtures"));
-  const allFixtures = fixtureDocs.docs.map(d => ({ id: d.id, ...d.data() }));
+  const allFixtures = fixtureDocs.docs.map(d => {
+    const fixture = { id: d.id, ...d.data() };
+    if (fixture.stage === "9" || fixture.stage === 9) fixture.stage = "8";
+    return fixture;
+  });
   const weeks = [...new Set(allFixtures.map(f => f.stage))].filter(Boolean);
 
   const deadlinesSnap = await getDocs(collection(db, "deadlines"));
@@ -393,7 +392,11 @@ async function preloadAllStages() {
 
 async function loadAllStageDataForLeaderboards() {
   const fixtureDocs = await getDocs(collection(db, "fixtures"));
-  const allFixtures = fixtureDocs.docs.map(d => ({ id: d.id, ...d.data() }));
+  const allFixtures = fixtureDocs.docs.map(d => {
+    const fixture = { id: d.id, ...d.data() };
+    if (fixture.stage === "9" || fixture.stage === 9) fixture.stage = "8";
+    return fixture;
+  });
   const weeks = [...new Set(allFixtures.map(f => f.stage))].filter(Boolean);
 
   const deadlineSnap = await getDocs(collection(db, "deadlines"));
@@ -487,7 +490,7 @@ loginBtn.onclick = async () => {
 
       const all = await getDocs(collection(db, "fixtures"));
       if (all.empty) {
-        for (let gw = 1; gw <= 9; gw++) {
+        for (let gw = 1; gw <= 8; gw++) {
           const id = `${gw}_Team A_Team B_${Date.now() + gw}`;
           await setDoc(doc(db, "fixtures", id), { home: "Country A", away: "Country B", stage: gw });
         }
@@ -655,6 +658,7 @@ function renderGameweek() {
 }
 
 function renderStage() {
+  if (currentStage === "9" || currentStage === 9) currentStage = "8";
   currentStage = String(currentStage || document.getElementById('gameweekSelect')?.value || '1');
   currentStage = currentStage || document.getElementById('gameweekSelect')?.value || '1';
   const fixturesContainer = document.getElementById("fixturesContainer");
@@ -1168,7 +1172,7 @@ window.addEventListener("DOMContentLoaded", async () => {
 
   if (savedUser && users[savedUser]) {
     currentUser = savedUser;
-    currentStage = savedStage || "1";
+    currentStage = savedStage === "9" ? "8" : (savedStage || "1");
 
     loginSection.style.display = "none";
     appDiv.style.display = "block";
