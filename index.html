@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- wc-prediction build: leaderboard-setText-fix-v12 -->
+<!-- wc-prediction build: fixture-manual-order-sorting-v13 -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -93,9 +93,10 @@
       <!-- Fixture Editor (David) -->
       <div id="fixtureEditor" class="mb-6 hidden">
         <h2 class="text-lg font-semibold mb-2">Edit Fixtures</h2>
-        <div class="flex items-center space-x-2">
+        <div class="flex items-center space-x-2 flex-wrap">
           <input id="newHomeTeam" class="border p-2" placeholder="Home Team" />
           <input id="newAwayTeam" class="border p-2" placeholder="Away Team" />
+          <input id="newFixtureOrder" type="number" min="1" class="border p-2 w-28" placeholder="Order" title="Fixture order in this stage" />
           <button id="addFixtureBtn" class="bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded">Add Fixture</button>
         </div>
         <div class="mt-2 flex items-center space-x-2">
@@ -233,6 +234,20 @@ function renderTeam(name) {
   `;
 }
 
+
+function getFixtureOrderValue(fixture) {
+  const n = Number(fixture.order);
+  return Number.isFinite(n) && n > 0 ? n : Number.MAX_SAFE_INTEGER;
+}
+
+function sortFixturesByOrder(fixtures) {
+  return [...fixtures].sort((a, b) => {
+    const byOrder = getFixtureOrderValue(a) - getFixtureOrderValue(b);
+    if (byOrder !== 0) return byOrder;
+    return String(a.id || "").localeCompare(String(b.id || ""));
+  });
+}
+
 const stageLabels = {
   "1": "Group Stage - Week 1",
   "2": "Group Stage - Week 2",
@@ -365,7 +380,7 @@ async function preloadAllStages() {
   });
 
   for (let week of weeks) {
-    const fixtures = allFixtures.filter(f => f.stage === week);
+    const fixtures = sortFixturesByOrder(allFixtures.filter(f => f.stage === week));
     const predictionsSnap = await getDoc(doc(db, "predictions", week));
     const resultsSnap = await getDoc(doc(db, "results", week));
     const predictions = predictionsSnap.exists() ? predictionsSnap.data() : {};
@@ -390,7 +405,7 @@ async function loadAllStageDataForLeaderboards() {
 
   for (let week of weeks) {
     if (!stageCache[week]) stageCache[week] = {};
-    const fixtures = allFixtures.filter(f => f.stage === week);
+    const fixtures = sortFixturesByOrder(allFixtures.filter(f => f.stage === week));
 
     const [predSnap, resSnap] = await Promise.all([
       getDoc(doc(db, "predictions", week)),
@@ -588,7 +603,7 @@ function subscribeToStage(stage) {
   // 🔄 Fixtures (real-time)
   const qFixtures = query(collection(db, "fixtures"), where("stage", "==", stage));
   const unsubFixtures = onSnapshot(qFixtures, snapshot => {
-    const fixtures = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+    const fixtures = sortFixturesByOrder(snapshot.docs.map(d => ({ id: d.id, ...d.data() })));
     currentFixtures = fixtures;
     if (!stageCache[stage]) stageCache[stage] = {};
     stageCache[stage].fixtures = fixtures;
@@ -652,6 +667,8 @@ const deadline = deadlineSource ? (deadlineSource instanceof Date ? deadlineSour
 const afterDeadline = deadline ? new Date() > deadline : false;
   setTextIfExists("gameweekDeadline", deadline ? `Deadline: ${deadline.toLocaleString()}` : "");
 
+  currentFixtures = sortFixturesByOrder(currentFixtures);
+
   for (const fixture of currentFixtures) {
     const result = currentResults[fixture.id];
     const pred = currentPredictions[fixture.id]?.[currentUser];
@@ -675,7 +692,8 @@ div.innerHTML = `
 </span>
     </div>
     ${currentUser === "david" ? `
-      <div class="flex gap-2 flex-wrap">
+      <div class="flex gap-2 flex-wrap items-center">
+        <span class="text-xs text-gray-500">Order: ${fixture.order || "–"}</span>
         <button class="editBtn bg-blue-100 hover:bg-blue-200 px-2 py-1 rounded text-sm">Edit</button>
         <button class="deleteFixtureBtn bg-red-100 hover:bg-red-200 px-2 py-1 rounded text-sm">Delete</button>
       </div>` : ""}
@@ -811,17 +829,22 @@ renderLeaderboardsFromLocalCache();
 div.querySelector(".editBtn")?.addEventListener("click", async () => {
   const newHome = prompt("New home team name:", fixture.home)?.trim();
   const newAway = prompt("New away team name:", fixture.away)?.trim();
+  const newOrderRaw = prompt("Fixture order number:", fixture.order || "")?.trim();
+  const newOrder = newOrderRaw ? Number(newOrderRaw) : null;
 
   if (!newHome || !newAway) return;
+  if (newOrderRaw && (!Number.isFinite(newOrder) || newOrder <= 0)) return alert("Order must be a positive number");
 
   await setDoc(doc(db, "fixtures", fixture.id), {
     home: newHome,
     away: newAway,
+    order: newOrder,
     stage: currentStage // ✅ required for real-time updates to work
   });
 
   fixture.home = newHome;
   fixture.away = newAway;
+  fixture.order = newOrder;
 
   renderStage(); // ✅ Update local UI immediately
 });
@@ -1018,7 +1041,10 @@ document.getElementById("resetPasswordBtn").onclick = async () => {
 document.getElementById("addFixtureBtn").onclick = async () => {
   const home = document.getElementById("newHomeTeam").value.trim();
   const away = document.getElementById("newAwayTeam").value.trim();
+  const orderRaw = document.getElementById("newFixtureOrder")?.value || "";
+  const order = orderRaw ? Number(orderRaw) : null;
   if (!home || !away) return alert("Enter both teams");
+  if (orderRaw && (!Number.isFinite(order) || order <= 0)) return alert("Order must be a positive number");
 
   if (!currentStage) currentStage = document.getElementById("gameweekSelect").value || "1";
   const id = `${currentStage}_${home}_${away}_${Date.now()}`;
@@ -1027,18 +1053,20 @@ document.getElementById("addFixtureBtn").onclick = async () => {
     await setDoc(doc(db, "fixtures", id), {
       home,
       away,
+      order,
       stage: currentStage
     });
 
     document.getElementById("newHomeTeam").value = "";
     document.getElementById("newAwayTeam").value = "";
+    if (document.getElementById("newFixtureOrder")) document.getElementById("newFixtureOrder").value = "";
 
     if (!stageCache[currentStage]) {
       stageCache[currentStage] = { fixtures: [], predictions: {}, results: {}, deadline: getDefaultDeadline(currentStage) };
     }
 
-    const newFixture = { id, home, away, stage: currentStage };
-    currentFixtures = [...currentFixtures.filter(f => f.id !== id), newFixture];
+    const newFixture = { id, home, away, order, stage: currentStage };
+    currentFixtures = sortFixturesByOrder([...currentFixtures.filter(f => f.id !== id), newFixture]);
     stageCache[currentStage].fixtures = currentFixtures;
     sessionStorage.setItem("stageCache", JSON.stringify(stageCache));
 
