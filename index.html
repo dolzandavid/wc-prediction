@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- wc-prediction build: unique-outcome-bonus-v15 -->
+<!-- wc-prediction build: leaderboard-bonus-column-v16 -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -980,8 +980,8 @@ function calculatePoints(pred, res) {
 }
 
 function renderLeaderboards(allPredictions, allResults, allFixtures) {
-  const overall = {}, exacts = {}, outcomes = {}, counts = {};
-  const weekly = {}, wExacts = {}, wOutcomes = {}, wCounts = {};
+  const overall = {}, exacts = {}, outcomes = {}, counts = {}, bonusTotals = {};
+  const weekly = {}, wExacts = {}, wOutcomes = {}, wCounts = {}, wBonusTotals = {};
 
   for (let fixture of allFixtures) {
     const fid = fixture.id;
@@ -1002,6 +1002,7 @@ function renderLeaderboards(allPredictions, allResults, allFixtures) {
       // Overall leaderboard
       overall[user] = (overall[user] || 0) + pts;
       counts[user] = (counts[user] || 0) + 1;
+      bonusTotals[user] = (bonusTotals[user] || 0) + bonusPts;
       if (isExact) exacts[user] = (exacts[user] || 0) + 1;
       if (isOutcome) outcomes[user] = (outcomes[user] || 0) + 1;
 
@@ -1009,13 +1010,14 @@ function renderLeaderboards(allPredictions, allResults, allFixtures) {
       if (isCurrentWeek) {
         weekly[user] = (weekly[user] || 0) + pts;
         wCounts[user] = (wCounts[user] || 0) + 1;
+        wBonusTotals[user] = (wBonusTotals[user] || 0) + bonusPts;
         if (isExact) wExacts[user] = (wExacts[user] || 0) + 1;
         if (isOutcome) wOutcomes[user] = (wOutcomes[user] || 0) + 1;
       }
     }
   }
 
-  const render = (points, e = {}, o = {}, c = {}) => {
+  const render = (points, e = {}, o = {}, c = {}, b = {}) => {
     const rows = Object.keys(users)
       .map(u => [u, points[u] || 0])
       .sort((a,b)=>b[1]-a[1] || userDisplayNames[a[0]].localeCompare(userDisplayNames[b[0]]));
@@ -1026,6 +1028,7 @@ function renderLeaderboards(allPredictions, allResults, allFixtures) {
           <th class="border px-2 py-1">#</th>
           <th class="border px-2 py-1">Player</th>
           <th class="border px-2 py-1">Pts</th>
+          <th class="border px-2 py-1">Bonus ⭐</th>
           <th class="border px-2 py-1">Exact (5)</th>
           <th class="border px-2 py-1">Outcome (2+)</th>
         </tr>
@@ -1034,10 +1037,12 @@ function renderLeaderboards(allPredictions, allResults, allFixtures) {
         ${rows.map(([u,p], index) => {
           const ex = e[u] || 0;
           const ou = o[u] || 0;
+          const bo = b[u] || 0;
           return `<tr class="text-center">
             <td class="border px-2 py-1 font-semibold">${index + 1}</td>
             <td class="border px-2 py-1 font-semibold">${userDisplayNames[u] || (u.charAt(0).toUpperCase() + u.slice(1))}</td>
             <td class="border px-2 py-1 font-semibold">${p}</td>
+            <td class="border px-2 py-1">${bo ? `⭐ ${bo}` : "0"}</td>
             <td class="border px-2 py-1">${ex}</td>
             <td class="border px-2 py-1">${ou}</td>
           </tr>`;
@@ -1046,8 +1051,8 @@ function renderLeaderboards(allPredictions, allResults, allFixtures) {
     </table>`;
   };
 
-  document.getElementById("leaderboardOverall").innerHTML = render(overall, exacts, outcomes, counts);
-  document.getElementById("leaderboardWeekly").innerHTML = render(weekly, wExacts, wOutcomes, wCounts);
+  document.getElementById("leaderboardOverall").innerHTML = render(overall, exacts, outcomes, counts, bonusTotals);
+  document.getElementById("leaderboardWeekly").innerHTML = render(weekly, wExacts, wOutcomes, wCounts, wBonusTotals);
   setTextIfExists("stageLeaderboardTitle", `Stage Leaderboard (${getStageLabel(currentStage)})`);
 
   // ✅ Show overall leaderboard once it's accurate
