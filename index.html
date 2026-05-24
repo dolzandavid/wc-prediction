@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- wc-prediction build: leaderboard-bonus-column-v16 -->
+<!-- wc-prediction build: scoring-update-v17 -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -893,7 +893,7 @@ div.querySelector(".deleteFixtureBtn")?.addEventListener("click", async () => {
 
         let ptsDisplay = pts;
         if (bonus > 0) {
-          ptsDisplay = `${pts - bonus} ⭐+${bonus}`;
+          ptsDisplay = `${pts - bonus} +${bonus}`;
         }
 
         let predictionDisplay = "🔒";
@@ -911,8 +911,8 @@ let tooltip = (!res && player !== currentUser && !afterDeadline)
 
         let ptsBgClass = "bg-gray-400";
         if (typeof pts === "number") {
-          if (pts === 5) ptsBgClass = "bg-green-600";
-          else if (pts >= 2) ptsBgClass = "bg-yellow-500";
+          if (pts >= 6) ptsBgClass = "bg-green-600";
+          else if (pts >= 3) ptsBgClass = "bg-yellow-500";
           else ptsBgClass = "bg-red-500";
         }
 
@@ -972,10 +972,19 @@ function calculateUniqueOutcomeBonus(fixtureId, player, result, predictionsForFi
 
 function calculatePoints(pred, res) {
   let pts = 0;
+
+  // exact home goals
   if (pred.home === res.home) pts++;
+
+  // exact away goals
   if (pred.away === res.away) pts++;
-  if (Math.sign(pred.home - pred.away) === Math.sign(res.home - res.away)) pts += 2;
+
+  // correct outcome (W/D/L)
+  if (Math.sign(pred.home - pred.away) === Math.sign(res.home - res.away)) pts += 3;
+
+  // exact-score bonus
   if (pred.home === res.home && pred.away === res.away) pts++;
+
   return pts;
 }
 
@@ -996,7 +1005,7 @@ function renderLeaderboards(allPredictions, allResults, allFixtures) {
       const bonusPts = calculateUniqueOutcomeBonus(fid, user, res, preds);
       const pts = basePts + bonusPts;
 
-      const isExact = basePts === 5;
+      const isExact = basePts === 6;
       const isOutcome = basePts >= 2;
 
       // Overall leaderboard
@@ -1029,8 +1038,8 @@ function renderLeaderboards(allPredictions, allResults, allFixtures) {
           <th class="border px-2 py-1">Player</th>
           <th class="border px-2 py-1">Pts</th>
           <th class="border px-2 py-1">Bonus ⭐</th>
-          <th class="border px-2 py-1">Exact (5)</th>
-          <th class="border px-2 py-1">Outcome (2+)</th>
+          <th class="border px-2 py-1">Exact (6)</th>
+          <th class="border px-2 py-1">Outcome (3+)</th>
         </tr>
       </thead>
       <tbody>
@@ -1042,7 +1051,7 @@ function renderLeaderboards(allPredictions, allResults, allFixtures) {
             <td class="border px-2 py-1 font-semibold">${index + 1}</td>
             <td class="border px-2 py-1 font-semibold">${userDisplayNames[u] || (u.charAt(0).toUpperCase() + u.slice(1))}</td>
             <td class="border px-2 py-1 font-semibold">${p}</td>
-            <td class="border px-2 py-1">${bo ? `⭐ ${bo}` : "0"}</td>
+            <td class="border px-2 py-1">${bo || 0}</td>
             <td class="border px-2 py-1">${ex}</td>
             <td class="border px-2 py-1">${ou}</td>
           </tr>`;
